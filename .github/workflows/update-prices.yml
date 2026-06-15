@@ -33,7 +33,14 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Collect prices
-        run: python scraper/price_collector.py --output hardware_prices.csv --pages 3 --delay 1.5
+        # Only the stores that respond to GitHub's datacenter IPs. darwin.md /
+        # enter.online / xstore.md / vexio.ro / proshop.de block those IPs, so
+        # they are scraped from a home PC instead; --merge keeps any rows they
+        # contributed to the feed rather than dropping them.
+        run: >
+          python scraper/price_collector.py --output hardware_prices.csv
+          --pages 3 --delay 1.5 --merge
+          --sites kabum,morele,onliner,shopkz,ultra,regard
 
       - name: Commit refreshed feed
         run: |
