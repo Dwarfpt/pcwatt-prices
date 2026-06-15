@@ -1,0 +1,48 @@
+name: Update prices
+
+# Runs the bulk price collector on GitHub's servers every week and commits the
+# refreshed feed back to this repo. The PCWatt app downloads it from the raw
+# URL, so no PC needs to be on. Public-repo Actions are free.
+
+on:
+  schedule:
+    - cron: "0 4 * * 0" # Sundays 04:00 UTC
+  workflow_dispatch: {} # also runnable on demand from the Actions tab
+
+permissions:
+  contents: write # allow the job to commit the updated feed
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Collect prices
+        run: python scraper/price_collector.py --output hardware_prices.csv --pages 3 --delay 1.5
+
+      - name: Commit refreshed feed
+        run: |
+          git config user.name "pcwatt-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add hardware_prices.csv price_history.json price_history README.md
+          if git diff --staged --quiet; then
+            echo "No price changes this run."
+          else
+            git commit -m "Auto price update $(date -u +%Y-%m-%d)"
+            git push
+          fi
