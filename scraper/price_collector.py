@@ -85,6 +85,7 @@ STORE_COUNTRY = {
     'onliner.by': 'BY', 'proshop.de': 'DE', 'morele.net': 'PL',
     'shop.kz': 'KZ', 'regard.ru': 'RU', 'kabum.com.br': 'BR',
     'vexio.ro': 'RO', 'ultra.md': 'MD', 'caseking.de': 'DE',
+    'terabyteshop.com.br': 'BR',
 }
 
 
@@ -314,6 +315,24 @@ SITES = {
             'cooler': 'coolers',
         },
     },
+    # ─── Brazil: clean HTML, div.product-item cards ───
+    'terabyte': {
+        'base': 'https://www.terabyteshop.com.br',
+        'card': 'div.product-item',
+        'parser': 'terabyte',
+        'currency': 'BRL',
+        'page_param': 'pagina',
+        'categories': {
+            'cpu': '/hardware/processadores',
+            'gpu': '/hardware/placa-de-video',
+            'motherboard': '/hardware/placa-mae',
+            'ram': '/hardware/memorias',
+            'storage': '/hardware/ssd',
+            'psu': '/hardware/fonte',
+            'cooler': '/hardware/cooler-para-processador',
+            'case': '/hardware/gabinete',
+        },
+    },
 }
 
 # Category words that stores prepend to product names; stripping them makes
@@ -452,6 +471,18 @@ def extract_card(card, profile):
             price, currency = parse_price(price_el.get_text(' ', strip=True))
             if name and price:
                 return name, price, currency or 'RON', absolutize(link['href'], base)
+        return None
+
+    if parser == 'terabyte':
+        a = card.find('a', href=True)
+        h = card.find(['h2', 'h3'])
+        price_el = card.select_one('.product-item__new-price') \
+            or card.select_one('[class*=price]')
+        if a and h and price_el:
+            name = clean_name(h.get_text(' ', strip=True))
+            price, _ = parse_price(price_el.get_text(' ', strip=True))
+            if name and price and len(name) >= 8:
+                return name, price, 'BRL', absolutize(a['href'], base)
         return None
 
     if parser == 'caseking':
