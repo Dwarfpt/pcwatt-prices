@@ -84,7 +84,7 @@ STORE_COUNTRY = {
     'darwin.md': 'MD', 'enter.online': 'MD', 'xstore.md': 'MD',
     'onliner.by': 'BY', 'proshop.de': 'DE', 'morele.net': 'PL',
     'shop.kz': 'KZ', 'regard.ru': 'RU', 'kabum.com.br': 'BR',
-    'vexio.ro': 'RO', 'ultra.md': 'MD',
+    'vexio.ro': 'RO', 'ultra.md': 'MD', 'caseking.de': 'DE',
 }
 
 
@@ -207,6 +207,25 @@ SITES = {
             'psu': '/Netzteil',
             'cooler': '/CPU-Kuehler',
             'case': '/Gehaeuse',
+        },
+    },
+    # ─── Germany: clean HTML, div.product cards ───
+    'caseking': {
+        'base': 'https://www.caseking.de',
+        'card': 'div.product',
+        'parser': 'caseking',
+        'currency': 'EUR',
+        'page_param': 'page',
+        'categories': {
+            'cpu': '/pc-komponenten/cpus-prozessoren',
+            'gpu': '/pc-komponenten/grafikkarten',
+            'motherboard': '/pc-komponenten/mainboards',
+            'ram': '/pc-komponenten/arbeitsspeicher',
+            'storage': '/pc-komponenten/laufwerke/solid-state-drives-ssd',
+            'psu': '/pc-komponenten/netzteile',
+            'cooler': '/luftkuehlung/kuehler/cpu-kuehler',
+            'case': '/gehaeuse-und-modding/computer-gehaeuse',
+            'fan': '/luftkuehlung/luefter',
         },
     },
     'morele': {
@@ -433,6 +452,17 @@ def extract_card(card, profile):
             price, currency = parse_price(price_el.get_text(' ', strip=True))
             if name and price:
                 return name, price, currency or 'RON', absolutize(link['href'], base)
+        return None
+
+    if parser == 'caseking':
+        a = card.select_one('.product-tile-product-name a[href]') \
+            or card.select_one('a.link.d-block[href]')
+        price_el = card.select_one('.price')
+        if a and price_el:
+            name = clean_name(a.get_text(' ', strip=True))
+            price, currency = parse_price(price_el.get_text(' ', strip=True))
+            if name and price and len(name) >= 8:
+                return name, price, currency or 'EUR', absolutize(a['href'], base)
         return None
 
     if parser == 'darwin':

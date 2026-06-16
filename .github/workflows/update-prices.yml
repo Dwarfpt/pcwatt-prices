@@ -40,7 +40,7 @@ jobs:
         run: >
           python scraper/price_collector.py --output hardware_prices.csv
           --pages 3 --delay 1.5 --merge
-          --sites kabum,morele,onliner,shopkz,ultra,regard
+          --sites kabum,morele,onliner,shopkz,ultra,regard,caseking
 
       - name: Commit refreshed feed
         run: |
