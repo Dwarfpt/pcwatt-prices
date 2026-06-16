@@ -75,7 +75,7 @@ def _close_browser():
 
 # Static EUR rates for cross-store comparison only (display keeps originals)
 EUR_RATES = {'MDL': 20.0, 'EUR': 1.0, 'PLN': 4.3, 'USD': 1.08, 'RUB': 100.0,
-             'RON': 5.0, 'BYN': 3.5, 'KZT': 500.0, 'BRL': 6.0}
+             'RON': 5.0, 'BYN': 3.5, 'KZT': 500.0, 'BRL': 6.0, 'UAH': 47.0}
 
 # Store domain -> ISO country, so we can keep the cheapest offer PER COUNTRY
 # (the app then shows the price for the user's region). Keep in sync with the
@@ -85,7 +85,7 @@ STORE_COUNTRY = {
     'onliner.by': 'BY', 'proshop.de': 'DE', 'morele.net': 'PL',
     'shop.kz': 'KZ', 'regard.ru': 'RU', 'kabum.com.br': 'BR',
     'vexio.ro': 'RO', 'ultra.md': 'MD', 'caseking.de': 'DE',
-    'terabyteshop.com.br': 'BR',
+    'terabyteshop.com.br': 'BR', 'telemart.ua': 'UA',
 }
 
 
@@ -315,6 +315,23 @@ SITES = {
             'cooler': 'coolers',
         },
     },
+    # ─── Ukraine: clean HTML, div.product-item cards ───
+    'telemart': {
+        'base': 'https://telemart.ua',
+        'card': 'div.product-item',
+        'parser': 'telemart',
+        'currency': 'UAH',
+        'page_param': 'page',
+        'categories': {
+            'cpu': '/ua/processor/',
+            'gpu': '/ua/videocard/',
+            'motherboard': '/ua/motherboard/',
+            'ram': '/ua/ram/',
+            'storage': '/ua/ssd/',
+            'psu': '/ua/powersuply/',
+            'case': '/ua/case/',
+        },
+    },
     # ─── Brazil: clean HTML, div.product-item cards ───
     'terabyte': {
         'base': 'https://www.terabyteshop.com.br',
@@ -471,6 +488,22 @@ def extract_card(card, profile):
             price, currency = parse_price(price_el.get_text(' ', strip=True))
             if name and price:
                 return name, price, currency or 'RON', absolutize(link['href'], base)
+        return None
+
+    if parser == 'telemart':
+        a = None
+        for link in card.find_all('a', href=True):
+            if '/products/' in link['href'] and \
+                    (link.get('title') or len(link.get_text(strip=True)) > 8):
+                a = link
+                break
+        price_el = card.select_one('.product-cost') \
+            or card.select_one('.product-item-cost-column')
+        if a and price_el:
+            name = clean_name(a.get('title') or a.get_text(' ', strip=True))
+            price, _ = parse_price(price_el.get_text(' ', strip=True))
+            if name and price and len(name) >= 8:
+                return name, price, 'UAH', absolutize(a['href'], base)
         return None
 
     if parser == 'terabyte':
