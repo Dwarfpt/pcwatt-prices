@@ -224,13 +224,16 @@ SITES = {
         'currency': 'EUR',
         'render': 'playwright',
         'page_style': 'ldlc',  # /.../c4300/page2/
-        # Only the categories whose IDs are confirmed from the rendered nav;
-        # ram/storage/cooler/case IDs aren't exposed, left out for now.
+        # Category IDs confirmed from the rendered mega-menu. Cooler left out:
+        # ldlc's ventirad category (c4306) mixes in non-cooler accessories.
         'categories': {
             'cpu': '/informatique/pieces-informatique/processeur/c4300/',
             'gpu': '/informatique/pieces-informatique/carte-graphique-interne/c4684/',
             'motherboard': '/informatique/pieces-informatique/carte-mere/c4293/',
+            'ram': '/informatique/pieces-informatique/memoire-pc/c4703/',
+            'storage': '/informatique/pieces-informatique/disque-ssd/c4698/',
             'psu': '/informatique/pieces-informatique/alimentation-pc/c4289/',
+            'case': '/informatique/pieces-informatique/boitier-pc/c4678/',
         },
     },
     # ─── Germany: clean HTML, div.product cards ───
