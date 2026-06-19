@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests beautifulsoup4 playwright
+          pip install requests beautifulsoup4 playwright openpyxl
           python -m playwright install --with-deps chromium
 
       - name: Collect prices
@@ -42,11 +42,14 @@ jobs:
           --pages 3 --delay 1.5 --merge
           --sites kabum,morele,onliner,shopkz,ultra,regard,caseking,terabyte,telemart
 
+      - name: Build stats workbook
+        run: python scraper/build_stats_xlsx.py --feed hardware_prices.csv --out stats.xlsx
+
       - name: Commit refreshed feed
         run: |
           git config user.name "pcwatt-bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add hardware_prices.csv price_history.json price_history README.md
+          git add hardware_prices.csv price_history.json price_history README.md stats.xlsx
           if git diff --staged --quiet; then
             echo "No price changes this run."
           else
