@@ -293,16 +293,18 @@ SITES = {
         'page_parser': 'regard',
         'currency': 'RUB',
         'delay': 8,  # aggressive rate limiting (429 after a few quick requests)
-        'page_style': 'regard',  # /catalog/group2000.htm -> /catalog/group2000/page2.htm
+        'page_param': 'page',  # /catalog/1001/processory?page=2
+        # New /catalog/{id}/{slug} URLs (verified via the rendered nav); the old
+        # group####.htm IDs were wrong for everything but cpu/motherboard.
         'categories': {
-            'cpu': '/catalog/group2000.htm',
-            'gpu': '/catalog/group1013.htm',
-            'motherboard': '/catalog/group1000.htm',
-            'ram': '/catalog/group1010.htm',
-            'storage': '/catalog/group1015.htm',
-            'psu': '/catalog/group1225.htm',
-            'cooler': '/catalog/group5162.htm',
-            'case': '/catalog/group1032.htm',
+            'cpu': '/catalog/1001/processory',
+            'gpu': '/catalog/1013/videokarty',
+            'motherboard': '/catalog/1000/materinskie-platy',
+            'ram': '/catalog/1010/operativnaya-pamyat',
+            'storage': '/catalog/1015/nakopiteli-ssd',
+            'psu': '/catalog/1225/bloki-pitaniya',
+            'cooler': '/catalog/5162/kulery-dlya-processorov',
+            'case': '/catalog/1032/korpusa',
         },
     },
     # ─── Brazil: public catalog API ───
