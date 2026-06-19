@@ -77,6 +77,11 @@ def _close_browser():
 EUR_RATES = {'MDL': 20.0, 'EUR': 1.0, 'PLN': 4.3, 'USD': 1.08, 'RUB': 100.0,
              'RON': 5.0, 'BYN': 3.5, 'KZT': 500.0, 'BRL': 6.0, 'UAH': 47.0}
 
+# Merged rows (stores not scraped this run, e.g. the home-PC-only MD stores)
+# older than this are dropped rather than carried forever — keeps delisted
+# products from lingering in the feed.
+MAX_MERGE_AGE_DAYS = 75
+
 # Store domain -> ISO country, so we can keep the cheapest offer PER COUNTRY
 # (the app then shows the price for the user's region). Keep in sync with the
 # app's lib/services/store_region.dart.
@@ -415,10 +420,38 @@ def absolutize(url, base):
     return base + (url if url.startswith('/') else '/' + url)
 
 
+# Out-of-stock / discontinued markers across the stores' languages. Verified
+# not to appear in in-stock product cards, so a match means "can't buy it now".
+UNAVAILABLE_PHRASES = (
+    'нет в наличии', 'немає в наявності', 'нема в наявності', 'закінчився',
+    'снят с производства', 'товар закончился', 'распродано', 'отсутствует',
+    'out of stock', 'sold out', 'discontinued', 'no longer available',
+    'nicht auf lager', 'ausverkauft', 'nicht mehr lieferbar',
+    'nicht verfügbar', 'auslaufartikel',
+    'produto indisponível', 'indisponível', 'esgotado', 'fora de estoque',
+    'sem estoque', 'niedostępny', 'produkt wycofany',
+    'stoc epuizat', 'indisponibil', 'produs indisponibil',
+)
+
+
+def _card_unavailable(card):
+    """True if an HTML product card is flagged out-of-stock / discontinued."""
+    try:
+        txt = card.get_text(' ', strip=True).lower()
+    except AttributeError:
+        return False
+    return any(p in txt for p in UNAVAILABLE_PHRASES)
+
+
 def extract_card(card, profile):
     """Returns (name, price, currency, url) or None."""
     parser = profile['parser']
     base = profile['base']
+
+    # Drop listings the store marks as unavailable so the feed only carries
+    # things you can actually buy right now.
+    if _card_unavailable(card):
+        return None
 
     if parser == 'gtm':
         raw = card.get('data-gtm')
@@ -758,26 +791,43 @@ def main():
     wanted_cats = {c.strip() for c in args.categories.split(',') if c.strip()}
 
     session = requests.Session()
-    all_rows = []
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    all_rows = []  # 7-tuples: (name, price, currency, url, store, category, scraped_at)
     for site_key in wanted_sites:
         profile = SITES[site_key]
         print(f'== {site_key} ({profile["base"]}) ==')
         for cat_key, path in profile['categories'].items():
             if wanted_cats and cat_key not in wanted_cats:
                 continue
-            all_rows.extend(
-                collect_category(session, site_key, profile, cat_key, path, args.pages, args.delay))
+            for r in collect_category(session, site_key, profile, cat_key, path, args.pages, args.delay):
+                all_rows.append((*r, now))  # fresh scrape — stamp with this run
     _close_browser()  # tear down headless Chromium if any JS store was scraped
 
     # --merge: carry over rows of stores that were not scraped this run
+    # (e.g. the MD stores that block GitHub's IPs and are scraped from a home
+    # PC). Age out rows older than MAX_MERGE_AGE_DAYS so a store that hasn't
+    # been refreshed in months doesn't keep showing likely-delisted products.
     if args.merge and os.path.exists(args.output):
         scraped_stores = {SITES[s]['base'].split('//')[1].replace('www.', '').replace('catalog.', '')
                           for s in wanted_sites}
+        cutoff = datetime.datetime.now() - datetime.timedelta(days=MAX_MERGE_AGE_DAYS)
+        kept, dropped = 0, 0
         with open(args.output, encoding='utf-8-sig', newline='') as f:
             for row in list(csv.reader(f))[1:]:
                 if len(row) >= 6 and row[3] not in scraped_stores:
-                    all_rows.append((row[0], float(row[1]), row[2], row[4], row[3], row[5]))
-        print(f'[merge] carried over rows from stores not in this run')
+                    if len(row) >= 7:
+                        try:
+                            ts = datetime.datetime.strptime(row[6].strip(), '%Y-%m-%d %H:%M:%S')
+                            if ts < cutoff:
+                                dropped += 1
+                                continue  # too old — drop instead of re-stamping
+                        except ValueError:
+                            pass
+                    merged_ts = row[6].strip() if len(row) >= 7 and row[6].strip() else now
+                    all_rows.append((row[0], float(row[1]), row[2], row[4], row[3], row[5], merged_ts))
+                    kept += 1
+        print(f'[merge] carried over {kept} rows from stores not in this run '
+              f'(dropped {dropped} stale > {MAX_MERGE_AGE_DAYS}d)')
 
     # Dedupe per (product, country): keep the cheapest offer per normalized
     # name WITHIN each country, comparing prices in EUR. This leaves one row
@@ -787,15 +837,14 @@ def main():
         return price / EUR_RATES.get(currency, 1.0)
 
     best = {}
-    for name, price, currency, url, store, category in all_rows:
+    for name, price, currency, url, store, category, ts in all_rows:
         key = (re.sub(r'\s+', ' ', name).lower(), country_of_store(store))
         if key not in best or eur(price, currency) < eur(best[key][1], best[key][2]):
-            best[key] = (name, price, currency, url, store, category)
+            best[key] = (name, price, currency, url, store, category, ts)
 
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     ordered = sorted(best.values(), key=lambda r: (r[5], r[0].lower()))
-    rows = [[name, f'{price:.2f}', currency, store, url, category, now]
-            for name, price, currency, url, store, category in ordered]
+    rows = [[name, f'{price:.2f}', currency, store, url, category, ts]
+            for name, price, currency, url, store, category, ts in ordered]
     header = ['component_name', 'price', 'currency', 'store', 'url', 'category', 'scraped_at']
 
     out_dir = os.path.dirname(os.path.abspath(args.output))
@@ -825,7 +874,7 @@ def main():
             hist = json.load(f)
     except (FileNotFoundError, ValueError):
         hist = {}
-    for name, price, currency, _url, _store, _cat in ordered:
+    for name, price, currency, _url, _store, _cat, _ts in ordered:
         key = re.sub(r'\s+', ' ', name).lower()
         eur_price = round(eur(price, currency), 2)
         points = hist.get(key, [])
@@ -841,7 +890,7 @@ def main():
     # itself as a searchable table).
     by_cat = {}
     by_store = {}
-    for _, price, currency, _, store, category in ordered:
+    for _, price, currency, _, store, category, _ts in ordered:
         by_cat[category] = by_cat.get(category, 0) + 1
         by_store[store] = by_store.get(store, 0) + 1
     readme = os.path.join(out_dir, 'README.md')
