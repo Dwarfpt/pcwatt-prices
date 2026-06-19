@@ -90,7 +90,7 @@ STORE_COUNTRY = {
     'onliner.by': 'BY', 'proshop.de': 'DE', 'morele.net': 'PL',
     'shop.kz': 'KZ', 'regard.ru': 'RU', 'kabum.com.br': 'BR',
     'vexio.ro': 'RO', 'ultra.md': 'MD', 'caseking.de': 'DE',
-    'terabyteshop.com.br': 'BR', 'telemart.ua': 'UA',
+    'terabyteshop.com.br': 'BR', 'telemart.ua': 'UA', 'ldlc.com': 'FR',
 }
 
 
@@ -213,6 +213,24 @@ SITES = {
             'psu': '/Netzteil',
             'cooler': '/CPU-Kuehler',
             'case': '/Gehaeuse',
+        },
+    },
+    # ─── France: JS-rendered listing prices, needs Playwright. Cards:
+    #     li.pdt-item, name .title-3, price .price ("64€95" = 64.95) ───
+    'ldlc': {
+        'base': 'https://www.ldlc.com',
+        'card': 'li.pdt-item',
+        'parser': 'ldlc',
+        'currency': 'EUR',
+        'render': 'playwright',
+        'page_style': 'ldlc',  # /.../c4300/page2/
+        # Only the categories whose IDs are confirmed from the rendered nav;
+        # ram/storage/cooler/case IDs aren't exposed, left out for now.
+        'categories': {
+            'cpu': '/informatique/pieces-informatique/processeur/c4300/',
+            'gpu': '/informatique/pieces-informatique/carte-graphique-interne/c4684/',
+            'motherboard': '/informatique/pieces-informatique/carte-mere/c4293/',
+            'psu': '/informatique/pieces-informatique/alimentation-pc/c4289/',
         },
     },
     # ─── Germany: clean HTML, div.product cards ───
@@ -525,6 +543,20 @@ def extract_card(card, profile):
                 return name, price, currency or 'RON', absolutize(link['href'], base)
         return None
 
+    if parser == 'ldlc':
+        a = card.select_one('a[href]')
+        nm = card.select_one('h3.title-3') or card.select_one('.title-3')
+        pr = card.select_one('.price')
+        if a and nm and pr:
+            name = clean_name(nm.get_text(' ', strip=True))
+            # "64€95" -> "64.95"; whole euros "82€" -> "82"
+            ptext = re.sub(r'(\d)\s*€\s*(\d{2})', r'\1.\2', pr.get_text(' ', strip=True))
+            ptext = ptext.replace('€', '')
+            price, _ = parse_price(ptext)
+            if name and price and len(name) >= 6:
+                return name, price, 'EUR', absolutize(a['href'], base)
+        return None
+
     if parser == 'telemart':
         a = None
         for link in card.find_all('a', href=True):
@@ -720,8 +752,11 @@ def collect_category(session, site_key, profile, cat_key, path, max_pages, delay
             # ── JS-rendered stores (ultra.md) via headless Chromium ──
             url = profile['base'] + path
             if page > 1:
-                sep = '&' if '?' in url else '?'
-                url = f"{url}{sep}{profile['page_param']}={page}"
+                if profile.get('page_style') == 'ldlc':
+                    url = url + f'page{page}/'  # /.../c4300/page2/
+                else:
+                    sep = '&' if '?' in url else '?'
+                    url = f"{url}{sep}{profile['page_param']}={page}"
             try:
                 html = _render_html(url)
             except Exception as e:

@@ -40,7 +40,7 @@ jobs:
         run: >
           python scraper/price_collector.py --output hardware_prices.csv
           --pages 3 --delay 1.5 --merge
-          --sites kabum,morele,onliner,shopkz,ultra,regard,caseking,terabyte,telemart
+          --sites kabum,morele,onliner,shopkz,ultra,regard,caseking,terabyte,telemart,ldlc
 
       - name: Build stats workbook
         run: python scraper/build_stats_xlsx.py --feed hardware_prices.csv --out stats.xlsx
