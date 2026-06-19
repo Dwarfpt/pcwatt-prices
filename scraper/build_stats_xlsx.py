@@ -87,6 +87,25 @@ def build(feed, out):
     ws.column_dimensions['A'].width = 34
     ws.column_dimensions['B'].width = 22
 
+    # ── Components (the full list of what was added, filterable) ──
+    ws = wb.create_sheet('Components')
+    ws.append(['Компонент', 'Категория', 'Магазин', 'Страна', 'Валюта',
+               'Цена', 'Цена (EUR)', 'Обновлён'])
+    comp_rows = sorted(
+        rows, key=lambda r: (r['category'], _eur(float(r['price']), r['currency'])))
+    for r in comp_rows:
+        ws.append([
+            r['component_name'], r['category'], r['store'],
+            country_of_store(r['store']), r['currency'],
+            round(float(r['price']), 2), round(_eur(float(r['price']), r['currency'])),
+            r.get('scraped_at', '')[:10],
+        ])
+    _style_header(ws, 8)
+    ws.auto_filter.ref = f'A1:H{len(comp_rows) + 1}'
+    # Fixed widths — autosize would scan 6k rows and be slow/huge.
+    for col, w in zip('ABCDEFGH', (52, 13, 20, 8, 8, 12, 11, 12)):
+        ws.column_dimensions[col].width = w
+
     # ── By store ──
     ws = wb.create_sheet('By store')
     ws.append(['Магазин', 'Страна', 'Валюта', 'Позиций', 'Категорий',
@@ -101,6 +120,21 @@ def build(feed, out):
             round(sum(eurs) / len(eurs)), round(min(eurs)), last[:10],
         ])
     _style_header(ws, 8)
+    ws.auto_filter.ref = f'A1:H{len(stores) + 1}'
+    _autosize(ws)
+
+    # ── Coverage matrix: stores (rows) × categories (cols), item counts ──
+    ws = wb.create_sheet('Store x Category')
+    cat_names = sorted(cats)
+    ws.append(['Магазин', *cat_names, 'Итого'])
+    for store in sorted(stores, key=lambda s: -len(stores[s])):
+        counts = {}
+        for r in stores[store]:
+            counts[r['category']] = counts.get(r['category'], 0) + 1
+        ws.append([store, *[counts.get(c, '') for c in cat_names], len(stores[store])])
+    # Totals row
+    ws.append(['Итого', *[len(cats[c]) for c in cat_names], len(rows)])
+    _style_header(ws, len(cat_names) + 2)
     _autosize(ws)
 
     # ── By category ──
