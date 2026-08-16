@@ -1,30 +1,30 @@
 # PCWatt Price Feed
 
-Updated: **2026-08-09 04:55:32** — **6279** items (cheapest offer per product across stores).
+Updated: **2026-08-16 04:26:21** — **6324** items (cheapest offer per product across stores).
 
 Open [hardware_prices.csv](hardware_prices.csv) — GitHub renders it as a searchable table. Dated snapshots live in [price_history/](price_history/).
 
 | Category | Items |
 |---|---:|
-| case | 519 |
-| cooler | 394 |
-| cpu | 817 |
-| fan | 265 |
-| gpu | 871 |
-| motherboard | 840 |
+| case | 522 |
+| cooler | 395 |
+| cpu | 830 |
+| fan | 264 |
+| gpu | 963 |
+| motherboard | 825 |
 | paste | 21 |
-| psu | 817 |
-| ram | 823 |
-| storage | 912 |
+| psu | 800 |
+| ram | 813 |
+| storage | 891 |
 
 | Store | Items (cheapest) |
 |---|---:|
-| caseking.de | 982 |
-| kabum.com.br | 999 |
-| ldlc.com | 1000 |
+| caseking.de | 976 |
+| kabum.com.br | 964 |
+| ldlc.com | 992 |
 | onliner.by | 720 |
 | regard.ru | 576 |
-| shop.kz | 483 |
-| telemart.ua | 858 |
-| terabyteshop.com.br | 153 |
-| ultra.md | 508 |
+| shop.kz | 484 |
+| telemart.ua | 859 |
+| terabyteshop.com.br | 243 |
+| ultra.md | 510 |
