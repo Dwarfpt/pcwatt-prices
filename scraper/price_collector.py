@@ -257,7 +257,7 @@ SITES = {
     },
     'morele': {
         'base': 'https://www.morele.net',
-        'card': 'div.cat-product.card',
+        'card': 'div[data-testid="product-card"]',
         'parser': 'morele',
         'currency': 'PLN',
         'page_style': 'morele',  # pagination: <url>,,,,,,,,0,,,,,s/<n>/
@@ -267,9 +267,11 @@ SITES = {
             'motherboard': '/kategoria/plyty-glowne-42/',
             'ram': '/kategoria/pamieci-ram-38/',
             'storage': '/kategoria/dyski-ssd-518/',
-            'psu': '/kategoria/zasilacze-komputerowe-33/',
+            # Category ids moved in autumn 2026: -33 is now cases and -32
+            # laptop bags; the old slugs redirect there silently.
+            'psu': '/kategoria/zasilacze-komputerowe-61/',
             'cooler': '/kategoria/chlodzenie-cpu-633/',
-            'case': '/kategoria/obudowy-32/',
+            'case': '/kategoria/obudowy-33/',
             'paste': '/kategoria/pasty-termoprzewodzace-1292/',
             'pad': '/kategoria/termopady-12300/',
         },
@@ -632,15 +634,16 @@ def extract_card(card, profile):
         return None
 
     if parser == 'morele':
-        name = clean_name(card.get('data-product-name') or '')
-        try:
-            price = float(card.get('data-product-price') or 0)
-        except ValueError:
+        # Layout since autumn 2026: <div data-testid="product-card"> with the
+        # name in .product-card__name-link and the price as «1 408,99 zł».
+        link = card.select_one('a.product-card__name-link')
+        price_el = card.select_one('[data-testid="product-price-new"]')
+        if not link or not price_el:
             return None
-        link_el = card.select_one('[data-link-href-param]')
-        url = absolutize(link_el['data-link-href-param'] if link_el else '', base)
-        if name and price > 0:
-            return name, price, 'PLN', url
+        name = clean_name(link.get_text(' ', strip=True))
+        price, _ = parse_price(price_el.get_text(' ', strip=True))
+        if name and price:
+            return name, price, 'PLN', absolutize(link.get('href', ''), base)
         return None
 
     if parser == 'shopkz':
