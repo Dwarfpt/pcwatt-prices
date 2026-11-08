@@ -33,7 +33,10 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+# line_buffering: when stdout is a pipe (update_prices.ps1 -> update.log), each
+# line is flushed at once, so a killed run still leaves its progress in the log.
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace',
+                              line_buffering=True)
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
